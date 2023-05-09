@@ -598,24 +598,16 @@ def top_ten_winners(shimoku: Client, order: int, dfs: dict[str,pd.DataFrame], or
     )
     next_order+=1
 
-    # Save this value for later use
     stackbar_tabs_order=next_order
 
-    # Increment one, because tabs is going to occupy this place
-    next_order+=1
-
-    # Plot charts
-    next_order+=plot_chart(agg_col="prod_billing", tab="Revenue (€)", order=next_order)
-    next_order+=1
-    next_order+=plot_chart(agg_col="quantity", tab="Units Sold", order=next_order)
-
-    # Do tab work
+    # Set parent child relationship
     shimoku.plt.insert_tabs_group_in_tab(
         menu_path=periodpath,
         parent_tab_index=tabs_index,
         child_tabs_group=top_ten_tabgroup,
     )
 
+    # Style tabs
     shimoku.plt.update_tabs_group_metadata(
         order=stackbar_tabs_order,
         menu_path=periodpath,
@@ -623,6 +615,16 @@ def top_ten_winners(shimoku: Client, order: int, dfs: dict[str,pd.DataFrame], or
         just_labels=True,
         sticky=False,
     )
+
+    # Increment one, because tabs is going to occupy this place
+    next_order+=1
+
+
+    # Plot charts
+    next_order+=plot_chart(agg_col="prod_billing", tab="Revenue (€)", order=next_order)
+    next_order+=1
+    next_order+=plot_chart(agg_col="quantity", tab="Units Sold", order=next_order)
+
     return next_order
 
 def configure_tabs(shimoku: Client):
