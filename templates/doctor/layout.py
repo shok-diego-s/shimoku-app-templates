@@ -37,51 +37,69 @@ def median_life(shimoku: Client, menu_path: str, order: int):
     )
     next_order+=1
 
-    shimoku.plt.stacked_horizontal_barchart(
-        data=data,
-        menu_path=menu_path,
-        order=next_order,
-        x="categoria",
-        rows_size=2,
-        cols_size=8,
-    )
-    next_order+=1
+    bentoorder=next_order
+    bentobox_id = {'bentoboxId': 'section1'}
+    bentobox_data = {
+        'bentoboxOrder': next_order,
+        'bentoboxSizeColumns': 4,
+        'bentoboxSizeRows': 2,
+    }
+    bentobox_data.update(bentobox_id)
+
+    mean = data.mean(axis=1, numeric_only=True)[0]
 
     shimoku.plt.indicator(
         data={
             "description": "meses",
             "title": "Tiempo Promedio para Todos: ",
-            "value": 12,
+            "value": mean,
             "color": "grey",
         },
         menu_path=menu_path,
         order=next_order,
-        cols_size=4,
+        cols_size=24,
+        rows_size=2,
         value="value",
         header="title",
         footer="description",
         color="color",
+        bentobox_data=bentobox_data,
     )
     next_order+=1
+
+    shimoku.plt.stacked_horizontal_barchart(
+        data=data,
+        menu_path=menu_path,
+        order=next_order,
+        cols_size=24,
+        rows_size=3,
+        x="categoria",
+        bentobox_data=bentobox_id,
+    )
+    next_order+=1
+
 
     return next_order
 
 def age_group(shimoku: Client, menu_path: str, order: int):
-    data = read_csv("age_group.csv")
+    data = read_csv("age_group_radar.csv")
 
     next_order=order
 
-    shimoku.plt.bar(
-        # Half of the data, to display every label
-        data=data[:8],
-        x="X",
-        y=["Median Life"],
-        title="Vida media de Usuarios por Grupo de Edad",
+    cols = list(data.columns)
+    data = data.to_dict('records')
+
+    # data = [{'name': 'Mujer', '16-25': 9, '26-35': 5, '36-45': 9, }, {'name': 'Hombre', '16-25': 1, '26-35': 2, '36-45': 5}]
+    shimoku.plt.radar(
+        data=data,
+        # x='name',
+        # y=['16-25', '26-35', '36-45']
+        x=cols[0],
+        y=cols[1:-1],
         order=next_order,
         menu_path=menu_path,
+        cols_size=8,
         rows_size=2,
-        x_axis_name="Age range & Activation code",
-        y_axis_name="Median Life (Months)",
     )
 
     next_order+=1
@@ -149,6 +167,74 @@ def client_num_byage(shimoku: Client, menu_path: str, order: int):
     data = read_csv("client_num_byage.csv")
     next_order=order
 
+    columns = list(data.columns)
+
+    dataset = data.values.tolist()
+    dataset.insert(0, columns)
+    options = {
+        'title': {
+            'text': 'Número de clientes por edad y género en el último mes (EOP)',
+        },
+        'tooltip': {
+            'trigger': 'axis',
+            'axisPointer': {
+                'type': 'cross',
+                'crossStyle': {
+                    'color': '#999'
+                }
+            }
+        },
+        'toolbox': {
+            'feature': {
+                'dataView': { 'show': True, 'readOnly': False },
+                'magicType': { 'show': True, 'type': ['line', 'bar'] },
+                'restore': { 'show': True },
+                'saveAsImage': { 'show': True }
+            }
+        },
+        'legend': {
+            'data': columns[1:-1],
+        },
+        'xAxis': {
+            'type': 'category',
+            'name': 'Rango de edad',
+            'nameLocation': 'center',
+            'nameGap': 40,
+            'axisPointer': {
+                'type': 'shadow'
+            },
+        },
+        'yAxis': {
+            'name': 'Nro clientes',
+            'nameLocation': 'center',
+            'nameGap': 50,
+        },
+        'series': [
+            {
+                'name': columns[1:][0],
+                'type': 'bar',
+            },
+            {
+                'name': columns[1:][1],
+                'type': 'bar',
+            },
+            {
+                'name': columns[1:][2],
+                'type': 'line',
+            }
+        ]
+    }
+
+    shimoku.plt.free_echarts(
+        data=data, # dummy
+        options=options,
+        order=next_order,
+        sort={
+            'field': 'sort_values',
+            'direction': 'asc',
+        },
+        menu_path=menu_path,
+    )
 
     next_order+=1
 
@@ -178,8 +264,10 @@ def client_num_bycode(shimoku: Client, menu_path: str, order: int):
 
 def plot_dashboard(shimoku: Client, menu_path: str):
     order=0
-    order+=median_life(shimoku,menu_path,order)
-    order+=age_group(shimoku,menu_path,order)
-    order+=cohort_activation(shimoku,menu_path,order)
-    order+=client_life_cohorts(shimoku,menu_path,order)
-    order+=client_num_bycode(shimoku,menu_path,order)
+    alt_menu='Changes'
+    order+=median_life(shimoku,alt_menu,order)
+    order+=age_group(shimoku,alt_menu,order)
+    order+=cohort_activation(shimoku,alt_menu,order)
+    order+=client_life_cohorts(shimoku,alt_menu,order)
+    order+=client_num_byage(shimoku,alt_menu,order)
+    order+=client_num_bycode(shimoku,alt_menu,order)
