@@ -7,18 +7,19 @@ from shimoku_api_python import Client
 # Local imports
 from layout import plot_dashboard
 
-# def setup_dashboard(shimoku: Client):
-#     """
-#     """
-#     # Sets the business for the whole module
-#     shimoku.dashboard.set_business(shimoku.app.business_id)
-#
-#     dashboard_name = 'Dashboard'
-#
-#     # Creates a dashboard and return it's dictionary representation
-#     shimoku.dashboard.create_dashboard(dashboard_name=dashboard_name, order=0)
-#
-#     shimoku.dashboard.add_app_in_dashboard()
+def setup_dashboard(shimoku: Client):
+    """
+    Does dashboard configuration
+    """
+
+
+    new_name = 'Dashboard'
+
+    # Change the old dashboard name
+    shimoku.dashboard.update_dashboard(
+        dashboard_name='Default Name',
+        name=new_name,
+    )
 
 
 if __name__ == "__main__":
@@ -33,6 +34,8 @@ if __name__ == "__main__":
     )
 
     plot_dashboard(shimoku, menu_path="Vida media")
+
+    # setup_dashboard(shimoku)
 
     # Execute all plots in asynchronous mode
     shimoku.activate_async_execution()
