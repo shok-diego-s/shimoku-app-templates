@@ -5,11 +5,20 @@ import numpy as np
 def read_csv(name: str) -> pd.DataFrame:
     return pd.read_csv(f"data/{name}")
 
-def median_life(shimoku: Client, menu_path: str, order: int):
-
-    data = read_csv("vida_media.csv")
+def median_life(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
 
     next_order=order
+
+    def get_kpis(gender: str):
+        df = data.query(f"Genero == '{gender}'")
+
+        return {
+            'count': df.shape[0],
+            'monthavg': df['Vida Media'].mean(),
+        }
+
+    kpis_men = get_kpis('Hombre')
+    kpis_women = get_kpis('Mujer')
 
     shimoku.plt.html(
         html=shimoku.html_components.beautiful_indicator(
@@ -37,47 +46,102 @@ def median_life(shimoku: Client, menu_path: str, order: int):
     )
     next_order+=1
 
-    bentoorder=next_order
-    bentobox_id = {'bentoboxId': 'section1'}
-    bentobox_data = {
-        'bentoboxOrder': next_order,
-        'bentoboxSizeColumns': 4,
-        'bentoboxSizeRows': 2,
+    common_params = {
+        'value': "value",
+        'header':"title",
+        'footer':"description",
+        'color': "color",
+        'cols_size':3,
+        'rows_size':1,
+        'menu_path': menu_path,
     }
-    bentobox_data.update(bentobox_id)
 
-    mean = data.mean(axis=1, numeric_only=True)[0]
+    hash_sy = "(#)"
+    shimoku.plt.indicator(
+        data={
+            "description": "",
+            "title": f"Hombres {hash_sy}",
+            "value": kpis_men['count'],
+            "color": "grey",
+        },
+        order=next_order,
+        **common_params,
+    )
+    next_order+=1
+
+    one_dec = "{:.1f}"
+    shimoku.plt.indicator(
+        data={
+            "description": "meses",
+            "title": "Tiempo promedio Hombres",
+            "value": one_dec.format(kpis_men['monthavg']),
+            "color": "grey",
+        },
+        order=next_order,
+        **common_params,
+    )
+    next_order+=1
+
+    shimoku.plt.indicator(
+        data={
+            "description": "",
+            "title": f"Mujeres {hash_sy}",
+            "value": kpis_women['count'],
+            "color": "grey",
+        },
+        order=next_order,
+        **common_params,
+    )
+    next_order+=1
 
     shimoku.plt.indicator(
         data={
             "description": "meses",
-            "title": "Tiempo Promedio para Todos: ",
-            "value": mean,
+            "title": "Tiempo promedio Mujeres",
+            "value": one_dec.format(kpis_women['monthavg']),
             "color": "grey",
         },
-        menu_path=menu_path,
         order=next_order,
-        cols_size=24,
-        rows_size=2,
-        value="value",
-        header="title",
-        footer="description",
-        color="color",
-        bentobox_data=bentobox_data,
+        **common_params,
     )
     next_order+=1
 
-    shimoku.plt.stacked_horizontal_barchart(
+
+    return next_order
+
+def age_scatter_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
+    next_order=order
+
+    # df = data.copy()
+    # df['Edad'] = data['Edad'].round(2)
+
+    shimoku.plt.scatter(
         data=data,
+        x='Edad',
+        y=['Edad','Vida Media'],
+        order=order,
         menu_path=menu_path,
-        order=next_order,
-        cols_size=24,
-        rows_size=3,
-        x="categoria",
-        bentobox_data=bentobox_id,
+        option_modifications={
+            'optionModifications': {
+                'markLine': {
+                    'silent': True,
+                    'symbol': 'none',
+                    'lineStyle': {
+                        'color': 'red',
+                        'type': 'solid',
+                        'width': 2,
+                    },
+                    'data': [
+                        {
+                            'yAxis': data['Vida Media'].mean(),
+                        },
+                    ],
+                }
+            }
+        }
     )
-    next_order+=1
 
+    next_order+=1
 
     return next_order
 
@@ -105,6 +169,7 @@ def age_group(shimoku: Client, menu_path: str, order: int):
     next_order+=1
 
     return next_order
+
 
 def cohort_activation(shimoku: Client, menu_path: str, order: int):
     data = read_csv("cohort_activation.csv")
@@ -264,10 +329,15 @@ def client_num_bycode(shimoku: Client, menu_path: str, order: int):
 
 def plot_dashboard(shimoku: Client, menu_path: str):
     order=0
-    alt_menu='Changes'
-    order+=median_life(shimoku,alt_menu,order)
-    order+=age_group(shimoku,alt_menu,order)
-    order+=cohort_activation(shimoku,alt_menu,order)
-    order+=client_life_cohorts(shimoku,alt_menu,order)
-    order+=client_num_byage(shimoku,alt_menu,order)
-    order+=client_num_bycode(shimoku,alt_menu,order)
+    alt_menu='V2'
+
+    data=read_csv('main.csv')
+    order+=median_life(shimoku,alt_menu,order, data)
+    order+=age_scatter_chart(shimoku,alt_menu,order, data)
+
+
+    # order+=age_group(shimoku,alt_menu,order)
+    # order+=cohort_activation(shimoku,alt_menu,order)
+    # order+=client_life_cohorts(shimoku,alt_menu,order)
+    # order+=client_num_byage(shimoku,alt_menu,order)
+    # order+=client_num_bycode(shimoku,alt_menu,order)
