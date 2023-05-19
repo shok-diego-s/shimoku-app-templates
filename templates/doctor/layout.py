@@ -1,16 +1,23 @@
 from shimoku_api_python import Client
 import pandas as pd
 import numpy as np
+import math
+
+from utils import meses
 
 def read_csv(name: str) -> pd.DataFrame:
     return pd.read_csv(f"data/{name}")
+
+def get_df_gender(gender: str, data: pd.DataFrame):
+    return data.query(f"Genero == '{gender}'")
+
 
 def median_life(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
 
     next_order=order
 
     def get_kpis(gender: str):
-        df = data.query(f"Genero == '{gender}'")
+        df = get_df_gender(gender, data)
 
         return {
             'count': df.shape[0],
@@ -112,33 +119,78 @@ def median_life(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame)
 def age_scatter_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
     next_order=order
 
-    # df = data.copy()
-    # df['Edad'] = data['Edad'].round(2)
+    cols = ['Edad', 'Vida Media']
+    df_men = get_df_gender('Hombre', data)[cols]
+    df_women = get_df_gender('Mujer', data)[cols]
+    series_data_men = df_men.values.tolist()
+    series_data_women = df_women.values.tolist()
 
-    shimoku.plt.scatter(
-        data=data,
-        x='Edad',
-        y=['Edad','Vida Media'],
+    def getMarkLine(df, color: str):
+        return {
+            'silent': True,
+            'symbol': 'none',
+            'lineStyle': {
+                'color': f"var(--chart-{color})",
+                'type': 'solid',
+                'width': 0.5,
+            },
+            'data': [
+                {
+                    'yAxis': df['Vida Media'].mean(),
+                },
+            ],
+        }
+
+    options = {
+        'legend': {},
+        'toolbox': {
+            'feature': {
+                'dataView': { 'show': True, 'readOnly': False },
+                'magicType': { 'show': True, 'type': ['line', 'bar'] },
+                'restore': { 'show': True },
+                'saveAsImage': { 'show': True },
+                'dataZoom': { 'show': True },
+            }
+        },
+        'xAxis': {
+            'name': 'Edad',
+            'nameLocation': 'center',
+            'nameGap': 50,
+        },
+        'yAxis': {
+            'name': 'Videa Promedio del Cliente (Meses)',
+            'nameLocation': 'center',
+            'nameGap': 50,
+        },
+        'series': [
+            {
+                'symbolSize': 10,
+                'data': series_data_men,
+                'name': 'Hombre',
+                'type': 'scatter',
+                'itemStyle': {
+                    'color': 'var(--chart-C1)',
+                },
+                'markLine': getMarkLine(df_men, 'C1')
+            },
+            {
+                'symbolSize': 10,
+                'data': series_data_women,
+                'name': 'Mujer',
+                'type': 'scatter',
+                'itemStyle': {
+                    'color': 'var(--chart-C8)',
+                },
+                'markLine': getMarkLine(df_women, 'C8')
+            }
+        ]
+    }
+
+    shimoku.plt.free_echarts(
+        data=data[:1], # dummy,
         order=order,
         menu_path=menu_path,
-        option_modifications={
-            'optionModifications': {
-                'markLine': {
-                    'silent': True,
-                    'symbol': 'none',
-                    'lineStyle': {
-                        'color': 'red',
-                        'type': 'solid',
-                        'width': 2,
-                    },
-                    'data': [
-                        {
-                            'yAxis': data['Vida Media'].mean(),
-                        },
-                    ],
-                }
-            }
-        }
+        options=options,
     )
 
     next_order+=1
@@ -190,42 +242,63 @@ def cohort_activation(shimoku: Client, menu_path: str, order: int):
     next_order+=1
 
     return next_order
-def client_life_cohorts(shimoku: Client, menu_path: str, order: int):
-    data = read_csv("client_life_cohorts.csv")
+
+def heatmap_ocurrency(shimoku: Client, menu_path: str, order: int):
+    data = read_csv("heatmap.csv")
 
     next_order=order
-    shimoku.plt.html(
-        html=shimoku.html_components.panel(
-            href="",
-            text="El analisis por cohortes permite visualizar datos por grupos, normalmente según dos ejes "
-            "temporales. El eje vertical representa el mes de suscripción del usuario, es la variable "
-            "que define los cohortes.\n El eje horizontal representa la cantidada de meses despues del mes "
-            "del eje vertical. Este mes puede ser el de la baja del usuario, o el mes en el que han tenido/"
-            "puntuado una consulta, de esta manera se puede ver la información relativa a cuantos meses "
-            "han pasado después del alta. Un caso muy claro es el mapa de vida de clientes en el que se "
-            "puede ver como la vida en meses de los clientes crece igual que el eje horizontal.\n",
-            symbol_name="insights",
-        ),
-        menu_path=menu_path,
-        order=next_order,
-        rows_size=1,
-        cols_size=12,
-    )
+
+    series_data = data.values.tolist()
+    options = {
+        'title': {
+            'top': 30,
+            'text': "Número de ocurrencias de Altas",
+            'subtext': "Por día de semana",
+        },
+        'tooltip': {},
+        'visualMap': {
+            'min': 0,
+            'max': 60,
+            'calculable': True,
+
+            'orient': 'horizontal',
+            'left': 'center',
+            'top': 65
+        },
+        'calendar': {
+            'top': 140,
+            'left': 100,
+            'right': 30,
+            'cellSize': ['auto', 20],
+            'range': ['2023-01', '2023-05'],
+            'dayLabel': {
+                'nameMap': ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+            },
+            'monthLabel': {
+                'nameMap': ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio",
+                          "Agosto","Septiembre","Octubre","Noviembre","Diciembre"]
+            },
+            'itemStyle': {
+                'borderWidth': 0.5
+            },
+            'yearLabel': { 'show': False }
+        },
+        'series': {
+            'type': 'heatmap',
+            'coordinateSystem': 'calendar',
+            'data': series_data,
+
+        }
+    }
     next_order+=1
 
-    data = data.to_dict('records')
-
-    shimoku.plt.heatmap(
-        data=data,
+    shimoku.plt.free_echarts(
+        data=data[:1], # dummy
+        options=options,
         order=next_order,
         menu_path=menu_path,
-        title='Client life by cohorts',
-        x='xAxis', y='yAxis', value='value',
-        x_axis_name='Unsubscribed at',
-        y_axis_name='Subscribed At',
+        rows_size=2,
     )
-    next_order+=1
-
     return next_order
 
 def client_num_byage(shimoku: Client, menu_path: str, order: int):
@@ -305,22 +378,127 @@ def client_num_byage(shimoku: Client, menu_path: str, order: int):
 
     return next_order
 
-def client_num_bycode(shimoku: Client, menu_path: str, order: int):
+def client_num_bycode(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
 
-    data = read_csv("client_num_bycode.csv")
     next_order=order
 
-    columns = list(data.columns)
+    cols = ["Suscrito en", "Codigo"]
 
-    shimoku.plt.stacked_area_chart(
-        data=data,
+    dfa = data.groupby(cols).size().reset_index(name='count')
+
+    dfb = dfa.pivot(
+        index=cols[0], columns=cols[1], values='count'
+    ).reset_index()
+
+    dfb.fillna(0, inplace=True)
+
+    # Order by month name
+    dfb[cols[0]] = pd.Categorical(
+        dfb[cols[0]], categories=meses, ordered=True
+    )
+
+    dfb.sort_values(cols[0], inplace=True)
+
+    shimoku.plt.stacked_barchart(
+        data=dfb,
+        order=next_order,
+        x=cols[0],
+        show_values=list(dfb.columns[1:]),
+        menu_path=menu_path,
+        x_axis_name="Mes del año actual",
+        y_axis_name='Proporcion de \nClientes por mes',
+        calculate_percentages=True,
+        # option_modifications={
+        #     'yAxis': {
+        #         'name': 'Proporcion de Clientes por mes',
+        #         'nameLocation': 'center',
+        #         'nameGap': 50,
+        #     }
+        # },
+    )
+
+    next_order+=1
+
+    return next_order
+
+def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
+    next_order=order
+
+    shimoku.plt.html(
         order=next_order,
         menu_path=menu_path,
-        x=columns[0], # month
-        show_values=columns[1:-1], # activation_codes
-        x_axis_name="Month of the current year",
-        y_axis_name='Clients per month',
-        #calculate_percentages=True,
+        html=shimoku.html_components.create_h1_title_with_modal(
+            title="Proporciones jerárquicas",
+            subtitle="",
+            text_color='var(--color-white)',
+            background_color='var(--color-primary)',
+            modal_title='Proporciones jerárquicas',
+            modal_text="""
+            Este gráfico muestra por niveles las proporciones por,
+            Rango de Edad, \n
+            Rango de Vida Media, \n
+            Y como se distribuye el uso de los códigos de activación entre los rangos de vida media
+            """,
+        )
+    )
+    next_order+=1
+
+    def make_range(col: str):
+        min_val = math.floor(data[col].min())
+        max_val = math.ceil(data[col].max())
+        range_size = math.floor( (max_val - min_val) / 4) # 
+        val_ranges = [( val, val + (range_size - 1) ) for val in range(min_val, max_val, range_size)]
+
+        return val_ranges
+
+    age_ranges = make_range('Edad')
+    life_ranges = make_range('Vida Media')
+
+    codes = data['Codigo'].unique()
+    sun_data = []
+    for min_age, max_age in age_ranges[:4]:
+        df_age = data.query(f"Edad >={min_age} & Edad <= {max_age}")
+        age_range_count = df_age.shape[0]
+        lvl_one = {
+            'name': f"{min_age} - {max_age}",
+            'value': age_range_count,
+            'children': []
+        }
+
+        for code in list(codes)[:4]:
+            df_code = df_age.query(f"Codigo == '{code}'")
+            lvl_two = {
+                'name': code,
+                'value': df_code.shape[0],
+                'children': []
+            }
+
+            # Rename column so it can be used in query method
+            df_code = df_code.rename(columns={'Vida Media': 'vida_media'})
+
+            for min_life, max_life in life_ranges[:4]:
+                df_life = df_code.query(f"vida_media >={min_life} & vida_media <= {max_life}")
+                lvl_three = {
+                    'name': f"{min_life} - {max_life}",
+                    'value': df_life.shape[0],
+                }
+
+                lvl_two['children'].append(lvl_three)
+
+            lvl_one['children'].append(lvl_two)
+
+        sun_data.append(lvl_one)
+
+
+    shimoku.plt.sunburst(
+        data=sun_data,
+        children='children',
+        value='value',
+        name='xAxis',
+        order=next_order,
+        menu_path=menu_path,
+        rows_size=5,
+        cols_size=12,
     )
 
     next_order+=1
@@ -332,12 +510,18 @@ def plot_dashboard(shimoku: Client, menu_path: str):
     alt_menu='V2'
 
     data=read_csv('main.csv')
-    order+=median_life(shimoku,alt_menu,order, data)
-    order+=age_scatter_chart(shimoku,alt_menu,order, data)
+
+    order+=sunburst_chart(shimoku,alt_menu,order,data)
+
+    # order+=median_life(shimoku,alt_menu,order, data)
+    # order+=age_scatter_chart(shimoku,alt_menu,order, data)
+    # order+=heatmap_ocurrency(shimoku,alt_menu,order)
+    # order+=client_num_bycode(shimoku,alt_menu,order, data)
+    # order+=sunburst_chart(shimoku,alt_menu,order,data)
 
 
+    # Possibly delete
     # order+=age_group(shimoku,alt_menu,order)
     # order+=cohort_activation(shimoku,alt_menu,order)
     # order+=client_life_cohorts(shimoku,alt_menu,order)
     # order+=client_num_byage(shimoku,alt_menu,order)
-    # order+=client_num_bycode(shimoku,alt_menu,order)
