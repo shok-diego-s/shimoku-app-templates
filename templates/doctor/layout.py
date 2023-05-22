@@ -5,6 +5,7 @@ import math
 
 from utils import meses
 
+vida_tab_group = "vida_tab_group"
 def read_csv(name: str) -> pd.DataFrame:
     return pd.read_csv(f"data/{name}")
 
@@ -12,7 +13,18 @@ def get_df_gender(gender: str, data: pd.DataFrame):
     return data.query(f"Genero == '{gender}'")
 
 
-def median_life(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
+def make_cat_range(df: pd.DataFrame, col: str, range_size: int):
+    """
+    Make a category range from numerical column
+    """
+    min_val = math.floor(df[col].min())
+    max_val = math.ceil(df[col].max())
+    range_size = math.floor( (max_val - min_val) / range_size) # 
+    val_ranges = [( val, val + (range_size - 1) ) for val in range(min_val, max_val, range_size)]
+
+    return val_ranges
+
+def life_kpis(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
 
     next_order=order
 
@@ -158,7 +170,7 @@ def age_scatter_chart(shimoku: Client, menu_path: str, order: int, data: pd.Data
             'nameGap': 50,
         },
         'yAxis': {
-            'name': 'Videa Promedio del Cliente (Meses)',
+            'name': 'Vida Promedio del Cliente (Meses)',
             'nameLocation': 'center',
             'nameGap': 50,
         },
@@ -191,36 +203,42 @@ def age_scatter_chart(shimoku: Client, menu_path: str, order: int, data: pd.Data
         order=order,
         menu_path=menu_path,
         options=options,
+        tabs_index=(vida_tab_group, 'Scatter'),
     )
 
     next_order+=1
 
     return next_order
 
-def age_group(shimoku: Client, menu_path: str, order: int):
-    data = read_csv("age_group_radar.csv")
-
+def age_group_bar(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
+    """
+    """
     next_order=order
+    age_ranges = make_cat_range(data, 'Edad', range_size=8)
+    df_age_dict = {'age_group': [], 'Vida media': []}
+    for min_age, max_age in age_ranges:
+        query_res = data.query(f"Edad >= {min_age} & Edad <= {max_age}")
 
-    cols = list(data.columns)
-    data = data.to_dict('records')
+        df_age_dict['age_group'].append(f"{min_age}-{max_age}")
 
-    # data = [{'name': 'Mujer', '16-25': 9, '26-35': 5, '36-45': 9, }, {'name': 'Hombre', '16-25': 1, '26-35': 2, '36-45': 5}]
-    shimoku.plt.radar(
-        data=data,
-        # x='name',
-        # y=['16-25', '26-35', '36-45']
-        x=cols[0],
-        y=cols[1:-1],
-        order=next_order,
+        df_age_dict['Vida media'].append(query_res['Vida Media'].median())
+
+    df_age = pd.DataFrame(data=df_age_dict)
+
+    shimoku.plt.bar(
+        data=df_age,
+        x="age_group",
+        y=["Vida media"],
+        y_axis_name="Vida promedio del cliente",
+        order=order,
         menu_path=menu_path,
-        cols_size=8,
-        rows_size=2,
+        tabs_index=(vida_tab_group, "Bar"),
     )
 
     next_order+=1
 
     return next_order
+
 
 
 def cohort_activation(shimoku: Client, menu_path: str, order: int):
@@ -405,6 +423,7 @@ def client_num_bycode(shimoku: Client, menu_path: str, order: int, data: pd.Data
         x=cols[0],
         show_values=list(dfb.columns[1:]),
         menu_path=menu_path,
+        title="Uso de códigos por més",
         x_axis_name="Mes del año actual",
         y_axis_name='Proporcion de \nClientes por mes',
         calculate_percentages=True,
@@ -434,29 +453,26 @@ def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFra
             background_color='var(--color-primary)',
             modal_title='Proporciones jerárquicas',
             modal_text="""
-            Este gráfico muestra por niveles las proporciones por,
+            Este gráfico muestra por niveles las proporciones por:
             Rango de Edad, \n
             Rango de Vida Media, \n
-            Y como se distribuye el uso de los códigos de activación entre los rangos de vida media
+            y como se distribuye el uso de los códigos de activación entre los rangos de vida media.
             """,
         )
     )
     next_order+=1
 
-    def make_range(col: str):
-        min_val = math.floor(data[col].min())
-        max_val = math.ceil(data[col].max())
-        range_size = math.floor( (max_val - min_val) / 4) # 
-        val_ranges = [( val, val + (range_size - 1) ) for val in range(min_val, max_val, range_size)]
 
-        return val_ranges
-
-    age_ranges = make_range('Edad')
-    life_ranges = make_range('Vida Media')
+    age_ranges = make_cat_range(data, 'Edad', range_size=4)
+    life_ranges = make_cat_range(data, 'Vida Media', range_size=4)
 
     codes = data['Codigo'].unique()
     sun_data = []
-    for min_age, max_age in age_ranges[:4]:
+
+    # Rename column so it can be used in query method
+    data.rename(columns={'Vida Media': 'vida_media'}, inplace=True)
+
+    for min_age, max_age in age_ranges:
         df_age = data.query(f"Edad >={min_age} & Edad <= {max_age}")
         age_range_count = df_age.shape[0]
         lvl_one = {
@@ -465,30 +481,26 @@ def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFra
             'children': []
         }
 
-        for code in list(codes)[:4]:
-            df_code = df_age.query(f"Codigo == '{code}'")
+        for min_life, max_life in life_ranges[:4]:
+            df_life = df_age.query(f"vida_media >={min_life} & vida_media <= {max_life}")
             lvl_two = {
-                'name': code,
-                'value': df_code.shape[0],
-                'children': []
+                'name': f"{min_life} - {max_life}",
+                'value': df_life.shape[0],
+                'children': [],
             }
 
-            # Rename column so it can be used in query method
-            df_code = df_code.rename(columns={'Vida Media': 'vida_media'})
 
-            for min_life, max_life in life_ranges[:4]:
-                df_life = df_code.query(f"vida_media >={min_life} & vida_media <= {max_life}")
+            for code in list(codes):
+                df_code = df_life.query(f"Codigo == '{code}'")
                 lvl_three = {
-                    'name': f"{min_life} - {max_life}",
-                    'value': df_life.shape[0],
+                    'name': code,
+                    'value': df_code.shape[0],
                 }
-
                 lvl_two['children'].append(lvl_three)
 
             lvl_one['children'].append(lvl_two)
 
         sun_data.append(lvl_one)
-
 
     shimoku.plt.sunburst(
         data=sun_data,
@@ -505,23 +517,36 @@ def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFra
 
     return next_order
 
+def configure_tabs(shimoku: Client, menu_path: str, order:int):
+    """
+    Set order and style of tabs
+    """
+    shimoku.plt.update_tabs_group_metadata(
+        order=order,
+        menu_path=menu_path,
+        group_name=vida_tab_group,
+        just_labels=True,
+        sticky=False,
+
+    )
+
+
 def plot_dashboard(shimoku: Client, menu_path: str):
     order=0
-    alt_menu='V2'
 
     data=read_csv('main.csv')
 
-    order+=sunburst_chart(shimoku,alt_menu,order,data)
+    order+=life_kpis(shimoku,menu_path,order, data)
 
-    # order+=median_life(shimoku,alt_menu,order, data)
-    # order+=age_scatter_chart(shimoku,alt_menu,order, data)
-    # order+=heatmap_ocurrency(shimoku,alt_menu,order)
-    # order+=client_num_bycode(shimoku,alt_menu,order, data)
-    # order+=sunburst_chart(shimoku,alt_menu,order,data)
+    tab_order=order
+    # Increment one because of tabs
+    order+=1
+    # These two go in a tab
+    order+=age_scatter_chart(shimoku,menu_path,order, data)
+    order+=age_group_bar(shimoku,menu_path,order, data)
+    configure_tabs(shimoku,menu_path,tab_order)
 
+    order+=heatmap_ocurrency(shimoku,menu_path,order)
+    order+=client_num_bycode(shimoku,menu_path,order, data)
+    order+=sunburst_chart(shimoku,menu_path,order,data)
 
-    # Possibly delete
-    # order+=age_group(shimoku,alt_menu,order)
-    # order+=cohort_activation(shimoku,alt_menu,order)
-    # order+=client_life_cohorts(shimoku,alt_menu,order)
-    # order+=client_num_byage(shimoku,alt_menu,order)

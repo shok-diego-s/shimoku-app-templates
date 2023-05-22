@@ -33,9 +33,9 @@ if __name__ == "__main__":
         async_execution=True,
     )
 
-    plot_dashboard(shimoku, menu_path="Vida media")
+    plot_dashboard(shimoku, menu_path="Altas y vida media")
 
-    # setup_dashboard(shimoku)
+    setup_dashboard(shimoku)
 
     # Execute all plots in asynchronous mode
     shimoku.activate_async_execution()
