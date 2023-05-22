@@ -6,8 +6,8 @@ import math
 from utils import meses
 
 vida_tab_group = "vida_tab_group"
-def read_csv(name: str) -> pd.DataFrame:
-    return pd.read_csv(f"data/{name}")
+def read_csv(name: str, **kwargs) -> pd.DataFrame:
+    return pd.read_csv(f"data/{name}", **kwargs)
 
 def get_df_gender(gender: str, data: pd.DataFrame):
     return data.query(f"Genero == '{gender}'")
@@ -262,16 +262,21 @@ def cohort_activation(shimoku: Client, menu_path: str, order: int):
     return next_order
 
 def heatmap_ocurrency(shimoku: Client, menu_path: str, order: int):
-    data = read_csv("heatmap.csv")
+    data = read_csv("heatmap.csv", parse_dates=['date'])
 
     next_order=order
 
-    series_data = data.values.tolist()
+    series_values = data.values.tolist()
+    series_data = [ {
+        'name': value[0].strftime('%d, %b %Y'),
+        'value': [str(value[0].date()), value[1]],
+    } for value in series_values ]
+
     options = {
         'title': {
             'top': 30,
-            'text': "Número de ocurrencias de Altas",
-            'subtext': "Por día de semana",
+            'text': "Altas de usuarios",
+            'subtext': "Por cada día del mes",
         },
         'tooltip': {},
         'visualMap': {
@@ -417,14 +422,22 @@ def client_num_bycode(shimoku: Client, menu_path: str, order: int, data: pd.Data
 
     dfb.sort_values(cols[0], inplace=True)
 
+    # Uncomment this if approved, else, delete
+
+    # value_columns = list(dfb.columns[1:])
+    # dfb[value_columns] = dfb[value_columns].apply(
+    #     lambda row: shimoku.plt._calculate_percentages_from_list(row, 2), axis=1)
+    #
+    # dfb = dfb.round()
+
     shimoku.plt.stacked_barchart(
         data=dfb,
         order=next_order,
         x=cols[0],
         show_values=list(dfb.columns[1:]),
         menu_path=menu_path,
-        title="Uso de códigos por més",
-        x_axis_name="Mes del año actual",
+        title="Proporción de activación de códigos",
+        subtitle="Por mes",
         y_axis_name='Proporcion de \nClientes por mes',
         calculate_percentages=True,
         # option_modifications={
@@ -536,17 +549,18 @@ def plot_dashboard(shimoku: Client, menu_path: str):
 
     data=read_csv('main.csv')
 
-    order+=life_kpis(shimoku,menu_path,order, data)
-
-    tab_order=order
-    # Increment one because of tabs
-    order+=1
-    # These two go in a tab
-    order+=age_scatter_chart(shimoku,menu_path,order, data)
-    order+=age_group_bar(shimoku,menu_path,order, data)
-    configure_tabs(shimoku,menu_path,tab_order)
-
-    order+=heatmap_ocurrency(shimoku,menu_path,order)
-    order+=client_num_bycode(shimoku,menu_path,order, data)
-    order+=sunburst_chart(shimoku,menu_path,order,data)
+    # order+=life_kpis(shimoku,menu_path,order, data)
+    #
+    # tab_order=order
+    # # Increment one because of tabs
+    # order+=1
+    # # These two go in a tab
+    # order+=age_scatter_chart(shimoku,menu_path,order, data)
+    # order+=age_group_bar(shimoku,menu_path,order, data)
+    # configure_tabs(shimoku,menu_path,tab_order)
+    #
+    # order+=heatmap_ocurrency(shimoku,menu_path,order)
+    # print(f"Order ====== {order}")
+    order+=client_num_bycode(shimoku,menu_path,63, data)
+    # order+=sunburst_chart(shimoku,menu_path,order,data)
 
