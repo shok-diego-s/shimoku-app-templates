@@ -19,7 +19,7 @@ def make_cat_range(df: pd.DataFrame, col: str, range_size: int):
     """
     min_val = math.floor(df[col].min())
     max_val = math.ceil(df[col].max())
-    range_size = math.floor( (max_val - min_val) / range_size) # 
+    range_size = math.floor( (max_val - min_val) / range_size) #
     val_ranges = [( val, val + (range_size - 1) ) for val in range(min_val, max_val, range_size)]
 
     return val_ranges
@@ -191,7 +191,8 @@ def age_scatter_chart(shimoku: Client, menu_path: str, order: int, data: pd.Data
                 'name': 'Mujer',
                 'type': 'scatter',
                 'itemStyle': {
-                    'color': 'var(--chart-C8)',
+                    'color': 'var(--chart-C2)',
+                    # 'color': 'var(--chart-C8)',
                 },
                 'markLine': getMarkLine(df_women, 'C8')
             }
@@ -215,20 +216,28 @@ def age_group_bar(shimoku: Client, menu_path: str, order: int, data: pd.DataFram
     """
     next_order=order
     age_ranges = make_cat_range(data, 'Edad', range_size=8)
-    df_age_dict = {'age_group': [], 'Vida media': []}
+    df_age_dict = {'age_group': [], 'Hombre': [], 'Mujer': []}
     for min_age, max_age in age_ranges:
         query_res = data.query(f"Edad >= {min_age} & Edad <= {max_age}")
 
         df_age_dict['age_group'].append(f"{min_age}-{max_age}")
 
-        df_age_dict['Vida media'].append(query_res['Vida Media'].median())
+        df_men = query_res.query(f"Genero == 'Hombre'")
+        df_women = query_res.query(f"Genero == 'Mujer'")
+
+        df_age_dict['Hombre'].append(df_men['Vida Media'].median())
+        df_age_dict['Mujer'].append(df_women['Vida Media'].median())
 
     df_age = pd.DataFrame(data=df_age_dict)
 
+    df_age.fillna(0, inplace=True)
+
     shimoku.plt.bar(
         data=df_age,
+        title="Vida media de los usuarios",
+        subtitle="Por edad y género",
         x="age_group",
-        y=["Vida media"],
+        y=["Hombre", "Mujer"],
         y_axis_name="Vida promedio del cliente",
         order=order,
         menu_path=menu_path,
@@ -239,27 +248,6 @@ def age_group_bar(shimoku: Client, menu_path: str, order: int, data: pd.DataFram
 
     return next_order
 
-
-
-def cohort_activation(shimoku: Client, menu_path: str, order: int):
-    data = read_csv("cohort_activation.csv")
-    columns = list(data.columns)
-
-    next_order=order
-
-    shimoku.plt.bar(
-        data=data,
-        order=next_order,
-        menu_path=menu_path,
-        x=columns[0],
-        y=columns[1:-1],
-        x_axis_name="Cohorts & Activation code",
-        y_axis_name="Median Life (Months)",
-    )
-
-    next_order+=1
-
-    return next_order
 
 def heatmap_ocurrency(shimoku: Client, menu_path: str, order: int):
     data = read_csv("heatmap.csv", parse_dates=['date'])
@@ -292,7 +280,7 @@ def heatmap_ocurrency(shimoku: Client, menu_path: str, order: int):
             'top': 140,
             'left': 100,
             'right': 30,
-            'cellSize': ['auto', 20],
+            'cellSize': ['auto', 40],
             'range': ['2023-01', '2023-05'],
             'dayLabel': {
                 'nameMap': ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -310,7 +298,6 @@ def heatmap_ocurrency(shimoku: Client, menu_path: str, order: int):
             'type': 'heatmap',
             'coordinateSystem': 'calendar',
             'data': series_data,
-
         }
     }
     next_order+=1
@@ -320,137 +307,8 @@ def heatmap_ocurrency(shimoku: Client, menu_path: str, order: int):
         options=options,
         order=next_order,
         menu_path=menu_path,
-        rows_size=2,
+        rows_size=3,
     )
-    return next_order
-
-def client_num_byage(shimoku: Client, menu_path: str, order: int):
-    data = read_csv("client_num_byage.csv")
-    next_order=order
-
-    columns = list(data.columns)
-
-    dataset = data.values.tolist()
-    dataset.insert(0, columns)
-    options = {
-        'title': {
-            'text': 'Número de clientes por edad y género en el último mes (EOP)',
-        },
-        'tooltip': {
-            'trigger': 'axis',
-            'axisPointer': {
-                'type': 'cross',
-                'crossStyle': {
-                    'color': '#999'
-                }
-            }
-        },
-        'toolbox': {
-            'feature': {
-                'dataView': { 'show': True, 'readOnly': False },
-                'magicType': { 'show': True, 'type': ['line', 'bar'] },
-                'restore': { 'show': True },
-                'saveAsImage': { 'show': True }
-            }
-        },
-        'legend': {
-            'data': columns[1:-1],
-        },
-        'xAxis': {
-            'type': 'category',
-            'name': 'Rango de edad',
-            'nameLocation': 'center',
-            'nameGap': 40,
-            'axisPointer': {
-                'type': 'shadow'
-            },
-        },
-        'yAxis': {
-            'name': 'Nro clientes',
-            'nameLocation': 'center',
-            'nameGap': 50,
-        },
-        'series': [
-            {
-                'name': columns[1:][0],
-                'type': 'bar',
-            },
-            {
-                'name': columns[1:][1],
-                'type': 'bar',
-            },
-            {
-                'name': columns[1:][2],
-                'type': 'line',
-            }
-        ]
-    }
-
-    shimoku.plt.free_echarts(
-        data=data, # dummy
-        options=options,
-        order=next_order,
-        sort={
-            'field': 'sort_values',
-            'direction': 'asc',
-        },
-        menu_path=menu_path,
-    )
-
-    next_order+=1
-
-    return next_order
-
-def client_num_bycode(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
-
-    next_order=order
-
-    cols = ["Suscrito en", "Codigo"]
-
-    dfa = data.groupby(cols).size().reset_index(name='count')
-
-    dfb = dfa.pivot(
-        index=cols[0], columns=cols[1], values='count'
-    ).reset_index()
-
-    dfb.fillna(0, inplace=True)
-
-    # Order by month name
-    dfb[cols[0]] = pd.Categorical(
-        dfb[cols[0]], categories=meses, ordered=True
-    )
-
-    dfb.sort_values(cols[0], inplace=True)
-
-    # Uncomment this if approved, else, delete
-
-    # value_columns = list(dfb.columns[1:])
-    # dfb[value_columns] = dfb[value_columns].apply(
-    #     lambda row: shimoku.plt._calculate_percentages_from_list(row, 2), axis=1)
-    #
-    # dfb = dfb.round()
-
-    shimoku.plt.stacked_barchart(
-        data=dfb,
-        order=next_order,
-        x=cols[0],
-        show_values=list(dfb.columns[1:]),
-        menu_path=menu_path,
-        title="Proporción de activación de códigos",
-        subtitle="Por mes",
-        y_axis_name='Proporcion de \nClientes por mes',
-        calculate_percentages=True,
-        # option_modifications={
-        #     'yAxis': {
-        #         'name': 'Proporcion de Clientes por mes',
-        #         'nameLocation': 'center',
-        #         'nameGap': 50,
-        #     }
-        # },
-    )
-
-    next_order+=1
-
     return next_order
 
 def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
@@ -549,18 +407,17 @@ def plot_dashboard(shimoku: Client, menu_path: str):
 
     data=read_csv('main.csv')
 
-    # order+=life_kpis(shimoku,menu_path,order, data)
-    #
-    # tab_order=order
-    # # Increment one because of tabs
-    # order+=1
-    # # These two go in a tab
-    # order+=age_scatter_chart(shimoku,menu_path,order, data)
-    # order+=age_group_bar(shimoku,menu_path,order, data)
-    # configure_tabs(shimoku,menu_path,tab_order)
-    #
-    # order+=heatmap_ocurrency(shimoku,menu_path,order)
+    order+=life_kpis(shimoku,menu_path,order, data)
+
+    tab_order=order
+    # Increment one because of tabs
+    order+=1
+    # These two go in a tab
+    order+=age_scatter_chart(shimoku,menu_path,order, data)
     # print(f"Order ====== {order}")
-    order+=client_num_bycode(shimoku,menu_path,63, data)
+    order+=age_group_bar(shimoku,menu_path,order, data)
+    configure_tabs(shimoku,menu_path,tab_order)
+    order+=heatmap_ocurrency(shimoku,menu_path,order)
+    # order+=client_num_bycode(shimoku,menu_path,63, data)
     # order+=sunburst_chart(shimoku,menu_path,order,data)
 
