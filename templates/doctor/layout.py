@@ -311,6 +311,57 @@ def heatmap_ocurrency(shimoku: Client, menu_path: str, order: int):
     )
     return next_order
 
+def client_num_bycode(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
+
+    next_order=order
+
+    cols = ["Suscrito en", "Codigo"]
+
+    dfa = data.groupby(cols).size().reset_index(name='count')
+
+    dfb = dfa.pivot(
+        index=cols[0], columns=cols[1], values='count'
+    ).reset_index()
+
+    dfb.fillna(0, inplace=True)
+
+    # Order by month name
+    dfb[cols[0]] = pd.Categorical(
+        dfb[cols[0]], categories=meses, ordered=True
+    )
+
+    dfb.sort_values(cols[0], inplace=True)
+
+    # Uncomment this if approved, else, delete
+
+    # value_columns = list(dfb.columns[1:])
+    # dfb[value_columns] = dfb[value_columns].apply(
+    #     lambda row: shimoku.plt._calculate_percentages_from_list(row, 2), axis=1)
+    #
+    # dfb = dfb.round()
+
+    shimoku.plt.stacked_barchart(
+        data=dfb,
+        order=next_order,
+        x=cols[0],
+        show_values=list(dfb.columns[1:]),
+        menu_path=menu_path,
+        title="Proporción de activación de códigos",
+        subtitle="Por mes",
+        y_axis_name='Proporcion de \nClientes por mes',
+        calculate_percentages=True,
+        # option_modifications={
+        #     'yAxis': {
+        #         'name': 'Proporcion de Clientes por mes',
+        #         'nameLocation': 'center',
+        #         'nameGap': 50,
+        #     }
+        # },
+    )
+
+    next_order+=1
+
+    return next_order
 def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
     next_order=order
 
@@ -418,6 +469,6 @@ def plot_dashboard(shimoku: Client, menu_path: str):
     order+=age_group_bar(shimoku,menu_path,order, data)
     configure_tabs(shimoku,menu_path,tab_order)
     order+=heatmap_ocurrency(shimoku,menu_path,order)
-    # order+=client_num_bycode(shimoku,menu_path,63, data)
-    # order+=sunburst_chart(shimoku,menu_path,order,data)
+    order+=client_num_bycode(shimoku,menu_path,63, data)
+    order+=sunburst_chart(shimoku,menu_path,order,data)
 
