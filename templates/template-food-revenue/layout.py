@@ -268,6 +268,15 @@ def stacked_bar_sales(shimoku: Client, order: int, dfs: dict[str,pd.DataFrame], 
 
     next_order=order
 
+
+    # The stacked bar chart as child of the origin tabs
+    shimoku.plt.insert_tabs_group_in_tab(
+        menu_path=periodpath,
+        parent_tab_index=origin_tabs_map['all']['tab_index'],
+        child_tabs_group=stackbar_tab_group,
+    )
+
+
     # Position the tabs above of the stacked bar
     shimoku.plt.update_tabs_group_metadata(
         order=next_order,
@@ -276,8 +285,8 @@ def stacked_bar_sales(shimoku: Client, order: int, dfs: dict[str,pd.DataFrame], 
         just_labels=True,
         sticky=False,
     )
-    next_order+=1
 
+    next_order+=1
     for week in wn.keys():
         next_order+=plot_stacked(next_order, week)
         next_order+=1
@@ -598,24 +607,16 @@ def top_ten_winners(shimoku: Client, order: int, dfs: dict[str,pd.DataFrame], or
     )
     next_order+=1
 
-    # Save this value for later use
     stackbar_tabs_order=next_order
 
-    # Increment one, because tabs is going to occupy this place
-    next_order+=1
-
-    # Plot charts
-    next_order+=plot_chart(agg_col="prod_billing", tab="Revenue (€)", order=next_order)
-    next_order+=1
-    next_order+=plot_chart(agg_col="quantity", tab="Units Sold", order=next_order)
-
-    # Do tab work
+    # Set parent child relationship
     shimoku.plt.insert_tabs_group_in_tab(
         menu_path=periodpath,
         parent_tab_index=tabs_index,
         child_tabs_group=top_ten_tabgroup,
     )
 
+    # Style tabs
     shimoku.plt.update_tabs_group_metadata(
         order=stackbar_tabs_order,
         menu_path=periodpath,
@@ -623,6 +624,16 @@ def top_ten_winners(shimoku: Client, order: int, dfs: dict[str,pd.DataFrame], or
         just_labels=True,
         sticky=False,
     )
+
+    # Increment one, because tabs is going to occupy this place
+    next_order+=1
+
+
+    # Plot charts
+    next_order+=plot_chart(agg_col="prod_billing", tab="Revenue (€)", order=next_order)
+    next_order+=1
+    next_order+=plot_chart(agg_col="quantity", tab="Units Sold", order=next_order)
+
     return next_order
 
 def configure_tabs(shimoku: Client):
@@ -639,12 +650,6 @@ def configure_tabs(shimoku: Client):
         child_tabs_group=pt_tab_group,
     )
 
-    # The stacked bar chart as child of the origin tabs
-    shimoku.plt.insert_tabs_group_in_tab(
-        menu_path=periodpath,
-        parent_tab_index=origin_tabs_map['all']['tab_index'],
-        child_tabs_group=stackbar_tab_group,
-    )
 
     # --- End Assing tabs to parent tabs ---
 
@@ -734,3 +739,5 @@ def plot_dashboard(shimoku: Client):
 
                 # the table will go into a all 'tab'
                 order+=product_type_table(shimoku, order, dfs, tabs_index, origin)
+
+    configure_tabs(shimoku)
