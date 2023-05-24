@@ -352,7 +352,6 @@ def client_num_bycode(shimoku: Client, menu_path: str, order: int, data: pd.Data
         calculate_percentages=True,
         # option_modifications={
         #     'yAxis': {
-        #         'name': 'Proporcion de Clientes por mes',
         #         'nameLocation': 'center',
         #         'nameGap': 50,
         #     }
@@ -439,6 +438,125 @@ def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFra
 
     return next_order
 
+def info_section(shimoku: Client, menu_path: str, order: int):
+
+    next_order=order
+    shimoku.plt.html(
+        html=shimoku.html_components.panel(
+            text="Para ver más detalle sobre como generar esta template o alguno de sus gráficos en concreto, te esperamos en el",
+            href="",
+        ),
+        order=next_order,
+        menu_path=menu_path,
+        cols_size=8,
+        rows_size=1,
+    )
+    next_order+=1
+
+    shimoku.plt.html(
+        html=shimoku.html_components.button_click_to_new_tab(
+            title="Post de Medium",
+            href="",
+            background_url="",
+
+        ),
+        order=next_order,
+        menu_path=menu_path,
+        cols_size=2,
+        rows_size=1,
+    )
+    next_order+=1
+
+    shimoku.plt.html(
+        html=shimoku.html_components.button_click_to_new_tab(
+            title="Y video de Youtube",
+            href="",
+            background_url="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Logo_of_YouTube_%282015-2017%29.svg/2560px-Logo_of_YouTube_%282015-2017%29.svg.png",
+        ),
+        order=next_order,
+        menu_path=menu_path,
+        cols_size=2,
+        rows_size=1,
+    )
+    next_order+=1
+
+    return next_order
+def info_section_two(shimoku: Client, menu_path: str, order: int):
+    next_order=order
+
+    import datetime as dt
+
+    shimoku.plt.update_modal(
+        menu_path=menu_path, modal_name='Test modal',
+        open_by_default=False, width=90, height=90
+    )
+    shimoku.plt.add_tabs_group_to_modal(
+        menu_path=menu_path, modal_name='Test modal', tabs_group_name='Test'
+    )
+    shimoku.plt.update_tabs_group_metadata(
+        menu_path=menu_path, group_name='Test', order=1
+    )
+
+    modal_header = shimoku.html_components.create_h1_title_with_modal(
+        title='Más información', subtitle='Para ver más detalle sobre como generar esta template o alguno de sus gráficos en concreto, te esperamos en el post de Medium y en el video que te hemos preparado',
+        background_color='var(--chart-C1)'
+    )
+
+    shimoku.plt.html(
+        html=modal_header, menu_path=menu_path, modal_name='Test modal', order=0
+    )
+
+
+    tabs_index=("Test", "Info")
+    shimoku.plt.indicator(
+        tabs_index=tabs_index, # delete
+        menu_path=menu_path,
+        order=2,
+        color="color",
+        background_image="background_image",
+        footer="footer",
+        value="value",
+        header="header",
+        align="align",
+        cols_size=2,
+        data={
+            "color": "warning",
+            "background_image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Logo_of_YouTube_%282015-2017%29.svg/2560px-Logo_of_YouTube_%282015-2017%29.svg.png",
+            "header": "",
+            "footer": "",
+            "value": "Youtube video",
+            "align": "left",
+        }
+    )
+
+    shimoku.plt.indicator(
+        tabs_index=tabs_index, # delete
+        menu_path=menu_path,
+        order=3,
+        color="color",
+        background_image="background_image",
+        footer="footer",
+        value="value",
+        header="header",
+        align="align",
+        cols_size=2,
+        data={
+            "color": "warning",
+            "background_image": "https://miro.medium.com/v2/resize:fit:1200/1*jfdwtvU6V6g99q3G7gq7dQ.png",
+            "header": "",
+            "footer": "",
+            "value": "Medium post",
+            "align": "left",
+        }
+    )
+
+    shimoku.plt.modal_button(
+        menu_path=menu_path, order=0,
+        modal_name_to_open='Test modal', label='Información'
+    )
+
+    return next_order+1
+
 def configure_tabs(shimoku: Client, menu_path: str, order:int):
     """
     Set order and style of tabs
@@ -458,6 +576,8 @@ def plot_dashboard(shimoku: Client, menu_path: str):
 
     data=read_csv('main.csv')
 
+    # order+=info_section(shimoku,menu_path,order)
+    order+=info_section_two(shimoku,menu_path,order)
     order+=life_kpis(shimoku,menu_path,order, data)
 
     tab_order=order
