@@ -1,17 +1,35 @@
 from shimoku_api_python import Client
+from importlib.metadata import version
 import pandas as pd
-import numpy as np
 import math
-
+import datetime as dt
 from utils import meses
 
+
 vida_tab_group = "vida_tab_group"
+
 def read_csv(name: str, **kwargs) -> pd.DataFrame:
     return pd.read_csv(f"data/{name}", **kwargs)
 
 def get_df_gender(gender: str, data: pd.DataFrame):
     return data.query(f"Genero == '{gender}'")
 
+def logo_link(shimoku: Client, img_url: str, href: str, menu_path: str, order: int, width: str = '100%', **kwargs):
+    img_tag = f"<img src=\"{img_url}\" style=\"width: {width};\">"
+    # if width != '100%':
+    #     img_tag = f"<img src={img_url} height=100 height={height} width={width}>"
+
+    html = f"""
+    <a href={href}>
+        {img_tag}
+    </a>
+    """
+    shimoku.plt.html(
+        html,
+        menu_path=menu_path,
+        order=order,
+        **kwargs,
+    )
 
 def make_cat_range(df: pd.DataFrame, col: str, range_size: int):
     """
@@ -41,7 +59,7 @@ def life_kpis(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
 
     shimoku.plt.html(
         html=shimoku.html_components.beautiful_indicator(
-            title= "Vida media de clientes",
+            title= "Estudio sobre altas y vida media de los usuarios de la aplicación",
             href="https://shimoku.io/1-vida-media-de-clientes",
             background_url="https://images.unsplash.com/photo-1628771065518-0d82f1938462?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80",
         ),
@@ -154,6 +172,9 @@ def age_scatter_chart(shimoku: Client, menu_path: str, order: int, data: pd.Data
         }
 
     options = {
+        'title': {
+            'text': 'Vida media de los usuarios por edad y género'
+        },
         'legend': {},
         'toolbox': {
             'feature': {
@@ -233,12 +254,14 @@ def age_group_bar(shimoku: Client, menu_path: str, order: int, data: pd.DataFram
     df_age.fillna(0, inplace=True)
 
     shimoku.plt.bar(
-        data=df_age,
-        title="Vida media de los usuarios",
+        data=df_age.round(2),
+        title="Vida media de los usuarios por edad y género",
+        cols_size=12,
+        rows_size=4,
         subtitle="Por edad y género",
         x="age_group",
         y=["Hombre", "Mujer"],
-        y_axis_name="Vida promedio del cliente",
+        y_axis_name="Vida promedio del cliente (Meses)",
         order=order,
         menu_path=menu_path,
         tabs_index=(vida_tab_group, "Bar"),
@@ -332,24 +355,16 @@ def client_num_bycode(shimoku: Client, menu_path: str, order: int, data: pd.Data
 
     dfb.sort_values(cols[0], inplace=True)
 
-    # Uncomment this if approved, else, delete
-
-    # value_columns = list(dfb.columns[1:])
-    # dfb[value_columns] = dfb[value_columns].apply(
-    #     lambda row: shimoku.plt._calculate_percentages_from_list(row, 2), axis=1)
-    #
-    # dfb = dfb.round()
-
     shimoku.plt.stacked_barchart(
         data=dfb,
         order=next_order,
+        menu_path=menu_path,
+        title="Códigos de alta usados",
         x=cols[0],
         show_values=list(dfb.columns[1:]),
-        menu_path=menu_path,
-        title="Proporción de activación de códigos",
-        subtitle="Por mes",
-        y_axis_name='Proporcion de \nClientes por mes',
         calculate_percentages=True,
+        cols_size=12,
+        rows_size=4,
         # option_modifications={
         #     'yAxis': {
         #         'nameLocation': 'center',
@@ -368,8 +383,8 @@ def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFra
         order=next_order,
         menu_path=menu_path,
         html=shimoku.html_components.create_h1_title_with_modal(
-            title="Proporciones jerárquicas",
-            subtitle="",
+            title='',
+            subtitle="Género -> Edad -> Vida Media",
             text_color='var(--color-white)',
             background_color='var(--color-primary)',
             modal_title='Proporciones jerárquicas',
@@ -383,41 +398,45 @@ def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFra
     )
     next_order+=1
 
+    genders = data['Genero'].unique()
 
     age_ranges = make_cat_range(data, 'Edad', range_size=4)
     life_ranges = make_cat_range(data, 'Vida Media', range_size=4)
 
-    codes = data['Codigo'].unique()
     sun_data = []
 
     # Rename column so it can be used in query method
     data.rename(columns={'Vida Media': 'vida_media'}, inplace=True)
 
-    for min_age, max_age in age_ranges:
-        df_age = data.query(f"Edad >={min_age} & Edad <= {max_age}")
-        age_range_count = df_age.shape[0]
+    for gender in genders:
+        df_g = get_df_gender(gender, data)
         lvl_one = {
-            'name': f"{min_age} - {max_age}",
-            'value': age_range_count,
+            'name': gender,
+            'value': df_g.shape[0],
             'children': []
         }
 
-        for min_life, max_life in life_ranges[:4]:
-            df_life = df_age.query(f"vida_media >={min_life} & vida_media <= {max_life}")
+        for min_age, max_age in age_ranges:
+            df_age = df_g.query(f"Edad >={min_age} & Edad <= {max_age}")
+            age_range_count = df_age.shape[0]
+
             lvl_two = {
-                'name': f"{min_life} - {max_life}",
-                'value': df_life.shape[0],
+                'name': f"{min_age} - {max_age}",
+                'value': age_range_count,
                 'children': [],
             }
 
+            for min_life, max_life in life_ranges:
+                df_life = df_age.query(f"vida_media >={min_life} & vida_media <= {max_life}")
 
-            for code in list(codes):
-                df_code = df_life.query(f"Codigo == '{code}'")
                 lvl_three = {
-                    'name': code,
-                    'value': df_code.shape[0],
+                    'name': f"{min_life} - {max_life}",
+                    'value': df_life.shape[0],
+                    'children': [],
                 }
-                lvl_two['children'].append(lvl_three)
+
+                if df_life.shape[0] > 0:
+                    lvl_two['children'].append(lvl_three)
 
             lvl_one['children'].append(lvl_two)
 
@@ -441,50 +460,68 @@ def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFra
 def info_section(shimoku: Client, menu_path: str, order: int):
 
     next_order=order
+
+    # Format to date spain format's
+    today = dt.datetime.now().date().strftime("%d-%m-%Y")
+    modal_text=f"""
+        Ultima actualización {today}. \n
+        Hecho con la versión {version('shimoku_api_python')} de la SDK de Shimoku.
+    """
     shimoku.plt.html(
-        html=shimoku.html_components.panel(
-            text="Para ver más detalle sobre como generar esta template o alguno de sus gráficos en concreto, te esperamos en el",
-            href="",
-        ),
         order=next_order,
         menu_path=menu_path,
-        cols_size=8,
+        cols_size=10,
         rows_size=1,
+        html=shimoku.html_components.create_h1_title_with_modal(
+            title='Más información',
+            subtitle="Para ver más detalle sobre como generar esta template o alguno de sus gráficos en concreto, te esperamos en el post de Medium y en el video de youtube que te hemos preparado",
+            text_color='var(--color-white)',
+            background_color='var(--color-primary)',
+            modal_title='Sobre el template',
+            modal_text=modal_text,
+        )
     )
     next_order+=1
 
-    shimoku.plt.html(
-        html=shimoku.html_components.button_click_to_new_tab(
-            title="Post de Medium",
-            href="",
-            background_url="",
+    bentologos_id = {'bentoboxId': 'social-logos'}
+    bentologos_data = {
+        'bentoboxOrder': next_order,
+        'bentoboxSizeColumns': 2,
+        'bentoBoxSizeRows': 1,
+    }
+    bentologos_data.update(bentologos_id)
 
-        ),
-        order=next_order,
+    # Youtube
+    logo_link(
+        shimoku,
+        img_url="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Logo_of_YouTube_%282015-2017%29.svg/2560px-Logo_of_YouTube_%282015-2017%29.svg.png",
+        href="https://www.youtube.com",
         menu_path=menu_path,
-        cols_size=2,
-        rows_size=1,
+        order=next_order,
+        cols_size=24,
+        rows_size=2,
+        width="60%",
+        bentobox_data=bentologos_data,
     )
     next_order+=1
 
-    shimoku.plt.html(
-        html=shimoku.html_components.button_click_to_new_tab(
-            title="Y video de Youtube",
-            href="",
-            background_url="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Logo_of_YouTube_%282015-2017%29.svg/2560px-Logo_of_YouTube_%282015-2017%29.svg.png",
-        ),
-        order=next_order,
+    # Medium
+    logo_link(
+        shimoku,
+        img_url="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Medium_%28website%29_logo.svg/798px-Medium_%28website%29_logo.svg.png?20210818085543",
+        href="https://medium.com",
+        width="90%",
         menu_path=menu_path,
-        cols_size=2,
-        rows_size=1,
+        order=next_order,
+        cols_size=24,
+        rows_size=2,
+        bentobox_data=bentologos_id,
     )
     next_order+=1
 
     return next_order
 def info_section_two(shimoku: Client, menu_path: str, order: int):
     next_order=order
-
-    import datetime as dt
 
     shimoku.plt.update_modal(
         menu_path=menu_path, modal_name='Test modal',
@@ -506,49 +543,73 @@ def info_section_two(shimoku: Client, menu_path: str, order: int):
         html=modal_header, menu_path=menu_path, modal_name='Test modal', order=0
     )
 
-
     tabs_index=("Test", "Info")
-    shimoku.plt.indicator(
-        tabs_index=tabs_index, # delete
-        menu_path=menu_path,
+
+
+    logo_link(
+        shimoku,
+        img_url="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Logo_of_YouTube_%282015-2017%29.svg/2560px-Logo_of_YouTube_%282015-2017%29.svg.png",
         order=2,
-        color="color",
-        background_image="background_image",
-        footer="footer",
-        value="value",
-        header="header",
-        align="align",
-        cols_size=2,
-        data={
-            "color": "warning",
-            "background_image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Logo_of_YouTube_%282015-2017%29.svg/2560px-Logo_of_YouTube_%282015-2017%29.svg.png",
-            "header": "",
-            "footer": "",
-            "value": "Youtube video",
-            "align": "left",
-        }
+        menu_path=menu_path,
+        tabs_index=tabs_index,
+        cols_size=3,
+        rows_size=1,
     )
 
-    shimoku.plt.indicator(
-        tabs_index=tabs_index, # delete
-        menu_path=menu_path,
+    logo_link(
+        shimoku,
+        img_url="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Medium_%28website%29_logo.svg/798px-Medium_%28website%29_logo.svg.png?20210818085543",
         order=3,
-        color="color",
-        background_image="background_image",
-        footer="footer",
-        value="value",
-        header="header",
-        align="align",
-        cols_size=2,
-        data={
-            "color": "warning",
-            "background_image": "https://miro.medium.com/v2/resize:fit:1200/1*jfdwtvU6V6g99q3G7gq7dQ.png",
-            "header": "",
-            "footer": "",
-            "value": "Medium post",
-            "align": "left",
-        }
+        menu_path=menu_path,
+        tabs_index=tabs_index,
+        cols_size=6,
+        rows_size=1,
     )
+    # shimoku.plt.indicator(
+    #     tabs_index=tabs_index, # delete
+    #     menu_path=menu_path,
+    #     order=2,
+    #     color="color",
+    #     background_image="background_image",
+    #     footer="footer",
+    #     value="value",
+    #     header="header",
+    #     align="align",
+    #     target_path='targetPath',
+    #     cols_size=3,
+    #     data={
+    #         "color": "warning",
+    #         "background_image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Logo_of_YouTube_%282015-2017%29.svg/2560px-Logo_of_YouTube_%282015-2017%29.svg.png",
+    #         "header": "",
+    #         "footer": "",
+    #         "value": "Youtube video",
+    #         "align": "left",
+    #         "targetPath": "https://youtube.com/",
+    #     }
+    # )
+
+    # shimoku.plt.indicator(
+    #     tabs_index=tabs_index, # delete
+    #     menu_path=menu_path,
+    #     order=3,
+    #     color="color",
+    #     background_image="background_image",
+    #     footer="footer",
+    #     value="value",
+    #     header="header",
+    #     align="align",
+    #     target_path='targetPath',
+    #     cols_size=3,
+    #     data={
+    #         "color": "warning",
+    #         "background_image": "https://miro.medium.com/v2/resize:fit:1200/1*jfdwtvU6V6g99q3G7gq7dQ.png",
+    #         "header": "",
+    #         "footer": "",
+    #         "value": "Medium post",
+    #         "align": "left",
+    #         "targetPath": "https://medium.com",
+    #     }
+    # )
 
     shimoku.plt.modal_button(
         menu_path=menu_path, order=0,
@@ -567,7 +628,6 @@ def configure_tabs(shimoku: Client, menu_path: str, order:int):
         group_name=vida_tab_group,
         just_labels=True,
         sticky=False,
-
     )
 
 
@@ -576,8 +636,11 @@ def plot_dashboard(shimoku: Client, menu_path: str):
 
     data=read_csv('main.csv')
 
-    # order+=info_section(shimoku,menu_path,order)
-    order+=info_section_two(shimoku,menu_path,order)
+    order+=info_section(shimoku,menu_path,order)
+
+    # menu_path="Option two"
+    # order+=info_section_two(shimoku,menu_path,order)
+
     order+=life_kpis(shimoku,menu_path,order, data)
 
     tab_order=order
@@ -585,10 +648,10 @@ def plot_dashboard(shimoku: Client, menu_path: str):
     order+=1
     # These two go in a tab
     order+=age_scatter_chart(shimoku,menu_path,order, data)
-    # print(f"Order ====== {order}")
     order+=age_group_bar(shimoku,menu_path,order, data)
     configure_tabs(shimoku,menu_path,tab_order)
     order+=heatmap_ocurrency(shimoku,menu_path,order)
     order+=client_num_bycode(shimoku,menu_path,63, data)
+    print(f"Order ====== {order}")
     order+=sunburst_chart(shimoku,menu_path,order,data)
 
