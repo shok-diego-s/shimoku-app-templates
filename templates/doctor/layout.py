@@ -70,19 +70,6 @@ def life_kpis(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
     )
     next_order+=1
 
-    shimoku.plt.html(
-        html=shimoku.html_components.panel(
-            text=f"Meses transcurridos entre alta-baja. Para cada usuario se calculan sus meses de vida (desde alta hasta la baja, si hay, si no desde alta hasta hoy), se suman todos y se divide por el número total de usuarios. Fecha máxima del conjunto de datos:",
-            href="",
-            symbol_name="Panorama",
-        ),
-        menu_path=menu_path,
-        order=next_order,
-        rows_size=1,
-        cols_size=12,
-    )
-    next_order+=1
-
     common_params = {
         'value': "value",
         'header':"title",
