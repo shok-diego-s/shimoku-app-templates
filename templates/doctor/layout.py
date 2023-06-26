@@ -2,7 +2,7 @@ from shimoku_api_python import Client
 from importlib.metadata import version
 import pandas as pd
 import math
-import datetime as dt
+from page_header import page_header
 from utils import meses
 
 
@@ -258,6 +258,32 @@ def age_group_bar(shimoku: Client, menu_path: str, order: int, data: pd.DataFram
 
     return next_order
 
+def info_section(shimoku: Client, menu_path: str, order: int):
+
+    next_order=order
+    next_order+=page_header(
+        shimoku,
+        order=order,
+        menu_path=menu_path,
+        title="Más información",
+        subtitle="Para ver más detalle sobre como generar esta template o alguno de sus gráficos en concreto, te esperamos en el post de Medium y en el video de youtube que te hemos preparado",
+        description="Este dashboard demuestra el comportamiento de usuarios cuando se dan de alta a través de la aplicación, detalla que tipo de código utilizaron para la realizar la acción, cuanto tiempo tardaron en hacerlo y que propiedades de la persona afectan el evento de alta, como el género y edad",
+        box={
+            'background': "https://images.unsplash.com/photo-1628771065518-0d82f1938462?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80",
+        },
+        buttons={
+            "button_github": {
+                'button_url': "",
+            },
+            "button_medium": {
+                "button_url": "",
+            },
+            "button_youtube": {
+                "button_url": "",
+            }
+        },
+    )
+    return next_order
 
 def heatmap_ocurrency(shimoku: Client, menu_path: str, order: int):
     data = read_csv("heatmap.csv", parse_dates=['date'])
@@ -444,69 +470,6 @@ def sunburst_chart(shimoku: Client, menu_path: str, order: int, data: pd.DataFra
 
     return next_order
 
-def info_section(shimoku: Client, menu_path: str, order: int):
-
-    next_order=order
-
-    # Format to date spain format's
-    today = dt.datetime.now().date().strftime("%d-%m-%Y")
-    modal_text=f"""
-        Ultima actualización {today}. \n
-        Hecho con la versión {version('shimoku_api_python')} de la SDK de Shimoku.
-    """
-    shimoku.plt.html(
-        order=next_order,
-        menu_path=menu_path,
-        cols_size=10,
-        rows_size=1,
-        html=shimoku.html_components.create_h1_title_with_modal(
-            title='Más información',
-            subtitle="Para ver más detalle sobre como generar esta template o alguno de sus gráficos en concreto, te esperamos en el post de Medium y en el video de youtube que te hemos preparado",
-            text_color='var(--color-white)',
-            background_color='var(--color-primary)',
-            modal_title='Sobre el template',
-            modal_text=modal_text,
-        )
-    )
-    next_order+=1
-
-    bentologos_id = {'bentoboxId': 'social-logos'}
-    bentologos_data = {
-        'bentoboxOrder': next_order,
-        'bentoboxSizeColumns': 2,
-        'bentoBoxSizeRows': 1,
-    }
-    bentologos_data.update(bentologos_id)
-
-    # Youtube
-    logo_link(
-        shimoku,
-        img_url="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Logo_of_YouTube_%282015-2017%29.svg/2560px-Logo_of_YouTube_%282015-2017%29.svg.png",
-        href="https://www.youtube.com",
-        menu_path=menu_path,
-        order=next_order,
-        cols_size=24,
-        rows_size=2,
-        width="60%",
-        bentobox_data=bentologos_data,
-    )
-    next_order+=1
-
-    # Medium
-    logo_link(
-        shimoku,
-        img_url="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Medium_%28website%29_logo.svg/798px-Medium_%28website%29_logo.svg.png?20210818085543",
-        href="https://medium.com",
-        width="90%",
-        menu_path=menu_path,
-        order=next_order,
-        cols_size=24,
-        rows_size=2,
-        bentobox_data=bentologos_id,
-    )
-    next_order+=1
-
-    return next_order
 def info_section_two(shimoku: Client, menu_path: str, order: int):
     next_order=order
 
@@ -623,10 +586,9 @@ def plot_dashboard(shimoku: Client, menu_path: str):
 
     data=read_csv('main.csv')
 
-    order+=info_section(shimoku,menu_path,order)
 
     # menu_path="Option two"
-    # order+=info_section_two(shimoku,menu_path,order)
+    order=info_section(shimoku,menu_path,order)
 
     order+=life_kpis(shimoku,menu_path,order, data)
 
