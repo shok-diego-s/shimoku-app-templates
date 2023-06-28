@@ -7,6 +7,7 @@ from shimoku_api_python import Client
 # Local imports
 from transform import filter_by_origin, human_format
 from utils import origins, get_data
+from page_header import page_header
 
 # --- Tabs Configuration ---
 periodpath = "Food"
@@ -51,6 +52,32 @@ wn = {
     }
 }
 # --- End Tabs Configuration ---
+
+def info_section(shimoku: Client, menu_path: str, order: int):
+    next_order=order
+    next_order+=page_header(
+        shimoku,
+        order=order,
+        menu_path=menu_path,
+        title="Restaurant dashboard",
+        subtitle="Sales revenue analytics",
+        description="This dashboard tracks and provides insight for the revenue of the products that Restaurant sold in a two week period. To find out how this dashboard was generated using the SDK, please visit the medium blog post or watch the youtube video.",
+        box={
+            'background': "https://elitetraveler.com/wp-content/uploads/sites/8/2017/10/Hotel-Eden-La-Terrazza-scaled-e1600071873644.jpg",
+        },
+        buttons={
+            "button_github": {
+                'button_url': "https://github.com/shimoku-tech/shimoku-app-templates/tree/master/templates/template-food-revenue",
+            },
+            "button_medium": {
+                "button_url": "https://medium.com/@shimoku/plotting-a-restaurants-dashboard-with-shimoku-s-sdk-ad8b3384d546",
+            },
+            "button_youtube": {
+                "button_url": "https://youtu.be/663sx1ye6wg",
+            }
+        },
+    )
+    return next_order
 
 def kpis(shimoku: Client, order: int, dfs: dict[str, pd.DataFrame], tabs_index, origin=""):
     """
@@ -696,6 +723,15 @@ def plot_dashboard(shimoku: Client):
     # Get origins including the special 'all'
     all_origins = ['all'] + origins
 
+    order = 0
+    order+=info_section(shimoku,periodpath, order)
+
+    shimoku.plt.update_tabs_group_metadata(
+        group_name=period_group,
+        menu_path=periodpath,
+        order=order,
+    )
+
     for period in period_tabs.keys():
         period_tab_index = period_tabs[period]['tab_index']
 
@@ -703,7 +739,7 @@ def plot_dashboard(shimoku: Client):
             # dummy stuff, so the other tabs are visible
             shimoku.plt.html(
                 menu_path=periodpath,
-                order=1,
+                order=order + 1,
                 tabs_index=period_tab_index,
                 html=shimoku.html_components.panel(
                     text=f"{period_tab_index[1]}",
@@ -711,7 +747,7 @@ def plot_dashboard(shimoku: Client):
                 )
             )
         if period == "WoW":
-            order = 2
+            order = order + 2
             for origin in all_origins:
                 tabs_index = origin_tabs_map[origin]['tab_index']
 
