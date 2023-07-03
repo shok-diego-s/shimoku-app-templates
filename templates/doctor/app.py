@@ -12,13 +12,14 @@ def setup_dashboard(shimoku: Client):
     Does dashboard configuration
     """
 
-
+    old_name = 'Default Name'
     new_name = 'Dashboard'
 
     # Change the old dashboard name
     shimoku.dashboard.update_dashboard(
-        dashboard_name='Default Name',
+        dashboard_name=old_name,
         name=new_name,
+        is_public=True,
     )
 
 
