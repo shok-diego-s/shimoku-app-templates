@@ -1,5 +1,6 @@
 from shimoku_api_python import Client
 from importlib.metadata import version
+import platform
 import pandas as pd
 import math
 from page_header import page_header
@@ -56,19 +57,6 @@ def life_kpis(shimoku: Client, menu_path: str, order: int, data: pd.DataFrame):
 
     kpis_men = get_kpis('Hombre')
     kpis_women = get_kpis('Mujer')
-
-    shimoku.plt.html(
-        html=shimoku.html_components.beautiful_indicator(
-            title= "Estudio sobre altas y vida media de los usuarios de la aplicación",
-            href="https://shimoku.io/1-vida-media-de-clientes",
-            background_url="https://images.unsplash.com/photo-1628771065518-0d82f1938462?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80",
-        ),
-        menu_path=menu_path,
-        order=next_order,
-        rows_size=1,
-        cols_size=12,
-    )
-    next_order+=1
 
     common_params = {
         'value': "value",
@@ -265,12 +253,13 @@ def info_section(shimoku: Client, menu_path: str, order: int):
         shimoku,
         order=order,
         menu_path=menu_path,
-        title="Más información",
-        subtitle="Para ver más detalle sobre como generar esta template o alguno de sus gráficos en concreto, te esperamos en el post de Medium y en el video de youtube que te hemos preparado",
-        description="Este dashboard demuestra el comportamiento de usuarios cuando se dan de alta a través de la aplicación, detalla que tipo de código utilizaron para la realizar la acción, cuanto tiempo tardaron en hacerlo y que propiedades de la persona afectan el evento de alta, como el género y edad",
+        title="Estudio sobre altas y vida media de los usuarios de la aplicación",
+        subtitle="Este dashboard demuestra el comportamiento de los usuarios que se han dado de alta a través de la aplicación. Detalla que tipo de código utilizaron para darse de alta, cuanto tiempo tardaron en hacerlo y que propiedades de la persona afectan este evento, como el género y la edad.",
+        description=f"Para ver más detalle sobre como generar esta template o alguno de sus gráficos en concreto, te esperamos en el post de Medium y en el video de youtube que te hemos preparado. Dashboard creado con la versión {version('shimoku_api_python')} de la SDK y Python {platform.python_version()}",
         box={
             'background': "https://images.unsplash.com/photo-1628771065518-0d82f1938462?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80",
         },
+        # url's to be defined later
         buttons={
             "button_github": {
                 'button_url': "",
@@ -368,7 +357,7 @@ def client_num_bycode(shimoku: Client, menu_path: str, order: int, data: pd.Data
 
     dfb.sort_values(cols[0], inplace=True)
 
-    shimoku.plt.stacked_barchart(
+    shimoku.plt.stacked_area_chart(
         data=dfb,
         order=next_order,
         menu_path=menu_path,
